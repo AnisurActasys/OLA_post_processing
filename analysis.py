@@ -1,12 +1,8 @@
-from csv import excel
 from pathlib import Path
-from numpy import true_divide
 from openpyxl import Workbook, load_workbook
-from openpyxl.utils import get_column_letter
 from pyparsing import col
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 excel_path = Path.cwd() / "cleaning_effectiveness_results.xlsx"
 wb = load_workbook(excel_path, data_only=True)
@@ -41,6 +37,8 @@ cases = list(cleaning_data.keys())
 to_80 = {}
 energy_dict = {}
 time_dict = {}
+clean_speed_dict = {}
+cutoff = 80
 
 for case in cases:
     time_keys = list(cleaning_data[case].keys())
@@ -55,12 +53,12 @@ for case in cases:
         energy_to_80 = None
         if derivative == max(derivatives):
             reference_time = time_key
-        if clean_percent == 80:
+        if clean_percent == cutoff:
             time_to_80 = time_key - reference_time
             energy_to_80 = (energy / time_key) * time_to_80 / 1000
             break
-        elif clean_percent > 80:
-            time_to_80 = (time_key - time_keys[j-1]) / (clean_percent - cleaning_data[case][time_keys[j-1]][0]) * (80 - cleaning_data[case][time_keys[j-1]][0]) + time_keys[j-1] - reference_time
+        elif clean_percent > cutoff:
+            time_to_80 = (time_key - time_keys[j-1]) / (clean_percent - cleaning_data[case][time_keys[j-1]][0]) * (cutoff - cleaning_data[case][time_keys[j-1]][0]) + time_keys[j-1] - reference_time
             energy_to_80 = energy / time_key * time_to_80 / 1000
             break
     if time_to_80 != None:
@@ -69,47 +67,45 @@ for case in cases:
         to_80[case] = time_and_energy
         energy_dict[case] = energy_to_80
         time_dict[case] = time_to_80
+        clean_speed_dict[case] = cutoff / time_to_80
 
 
 inputs = list(energy_dict.keys())
 energies = list(energy_dict.values())
 times = list(time_dict.values())
-
-#fig = plt.figure(figsize= (10, 5))
-#plt.bar(inputs, energies)
-#plt.xlabel("Input Parameters")
-#plt.ylabel("Energy Consumed (kJ)")
-#plt.title("Total Energy Consumed to Reach 80% Cleaning Effectiveness")
-#plt.show()
-#
-#fig = plt.figure(figsize= (10, 5))
-#inputs = list(energy_dict.keys())
-#times = list(time_dict.values())
-#plt.bar(inputs, energies)
-#plt.xlabel("Input Parameters")
-#plt.ylabel("Energy Consumed (kJ)")
-#plt.title("Total Energy Consumed to Reach 80% Cleaning Effectiveness")
-#plt.show()
+cleaning_speeds = list(clean_speed_dict.values())
 
 
-fig, ax = plt.subplots(figsize = (16,6))
-labels = inputs
-x = np.arange(len(inputs))
-ax2 = ax.twinx()
+def OLA_plots(inputs, var1, var2, axis_labels, legend_labels, title, figure_number):
+    
+    fig, ax = plt.subplots(figsize = (16,6))
+    labels = inputs
+    x = np.arange(len(inputs))
+    ax2 = ax.twinx()
 
-ax.set_xlabel("Input Parameters")
-ax.set_ylabel("Energy Consumed (kJ)")
-ax2.set_ylabel("Time to 80% Cleaning (s)")
+    ax.set_xlabel("Input Parameters")
+    ax.set_ylabel(axis_labels[0])
+    ax2.set_ylabel(axis_labels[1])
 
-color = ['red', 'royalblue']
-width = 0.25
+    color = ['red', 'royalblue']
+    width = 0.25
 
-p1 = ax.bar(x-width, energies, width = width, color = color[0], align = 'edge', label = 'Energy')
-p2 = ax2.bar(x, times, width = width, color = color[1], align = 'edge', label = 'Time')
+    p1 = ax.bar(x-width, var1, width = width, color = color[0], align = 'edge', label = legend_labels[0])
+    p2 = ax2.bar(x, var2, width = width, color = color[1], align = 'edge', label = legend_labels[1])
 
-lns = [p1, p2]
-ax.legend(handles = lns, loc = 'best')
-ax.set_xticks(x)
-ax.set_xticklabels(labels)
-ax.set_title("Time and Energy Demands to Reach 80% CLeaning Effectiveness",fontsize=18, weight='bold')
+    lns = [p1, p2]
+    ax.legend(handles = lns, loc = 'best')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_title(title,fontsize=18, weight='bold')
+    return plt.figure(figure_number)
+
+p1 = OLA_plots(inputs, cleaning_speeds, times, ["Clean Speed (%/s)", "Cleaning Time (s)"], ["Clean Speed", "Time"], "Cleaning Speeds and Cleaning Times", 1)
+p2 = OLA_plots(inputs, energies, times, ["Energy Consumed (kJ)", "Cleaning Times (s)"], ["Energy", "Time"], "Energy Consumption and Cleaning Times", 2)
+p3 = OLA_plots(inputs, energies, cleaning_speeds, ["Energy Consumed (kJ)", "Clean Speeds (%/s)"], ["Energy", "Clean Speed"], "Energy Consumption and Cleaning Speeds", 3)
+
+
 plt.show()
+
+
+
