@@ -6,36 +6,53 @@ import numpy as np
 from statistics import mean, stdev
 import xlwt
 from xlwt import Workbook
+import os
+import shutil
 
 #Locate and load Excel file
-excel_path = Path.cwd() / "cleaning_effectiveness_results.xlsx"
-wb = load_workbook(excel_path, data_only=True)
-ws = wb.active
-max_row = ws.max_row
-max_col = ws.max_column
+path = Path.cwd()
+try:
+    shutil.rmtree(os.path.join(path, 'plots'), ignore_errors=True)
+except:
+    print(Path.cwd() / 'plots' " doesn't exist")
 
+folder_list = []
+path_folders = os.listdir(path)
+for file in path_folders:
+    try:
+        path_folders.remove('seperated_cleaning_effectiveness_results.xls')
+    except:
+        pass
+    if (file[-3:] != 'mp4' and file[-2:] != 'py'):
+        folder_list.append(file)
 #All data from Excel file will be captured in one dictionary variable: cleaning_data{}
 cleaning_data = {}
 derivative_dict = {}
-for j in range(1, max_col, 3):
+for folder in folder_list:
+    excel_path = path / folder / 'Output_Edge.xlsx'
+    wb = load_workbook(excel_path, data_only=True)
+    ws = wb.active
+    max_row = ws.max_row
+    max_col = ws.max_column
     table_values = {}
     derivative_vals = []
-    parameter = ws.cell(row = 1, column = j).value
-    table_values[ws.cell(row = 3, column = j).value] = [0, 0, 0]
-    i = 4
+    parameter = ' '.join(folder.split(' ')[-4:])
+    table_values[ws.cell(row = 2, column = 2).value] = [0, 0, 0]
+    i = 3
     while(True):
-        if ws.cell(row = i, column = j).value == None:
+        if ws.cell(row = i, column = 2).value == None:
             break
         else:
-            derivative = (ws.cell(row = i, column = j+1).value - ws.cell(row = i-1, column = j+1).value) / ((ws.cell(row = i, column = j).value - ws.cell(row = i-1, column = j).value))
+            derivative = (ws.cell(row = i, column = 15).value - ws.cell(row = i-1, column = 15).value) / ((ws.cell(row = i, column = 2).value - ws.cell(row = i-1, column = 2).value))
             derivative_vals.append(derivative)
-            table_values[ws.cell(row = i, column = j).value] = [ws.cell(row = i, column = j+1).value, ws.cell(row = i, column = j+2).value, derivative]
+            table_values[ws.cell(row = i, column = 2).value] = [ws.cell(row = i, column = 15).value, ws.cell(row = i, column = 10).value, derivative]
             i += 1
     cleaning_data[parameter] = table_values
     derivative_dict[parameter] = derivative_vals
 
 #Seperate out the different operating conditions being compared
 cases = list(cleaning_data.keys())
+
 
 #Write out the data to a different Excel File. This time each case will get its own sheet 
 wb = Workbook() 
@@ -46,7 +63,7 @@ for case in cases:
     curr_sheet.write(1, 0, "Time (s)")
     curr_sheet.write(1, 1, "Cleaning Effectiveness (%)")
     curr_sheet.write(1, 2, "Energy Consumed (kJ)")
-    curr_sheet.write(1, 3, "Cleaning Rate Speed (%/s)")
+    curr_sheet.write(1, 3, "Cleaning Rate (%/s)")
     i = 2
     for time in times:
         clean_eff = cleaning_data[case][time][0]
@@ -68,7 +85,7 @@ energy_dict = {}
 inverse_energy_dict = {}
 time_dict = {}
 clean_speed_dict = {}
-cutoff = 80
+cutoff = 60
 
 #The actuator is assumed to turn on when the derivative value for cleaning is at its maximum
 #Optimizing speed is a maximizing operation while opimitizing energy consumption is a minimizing operation
@@ -149,7 +166,7 @@ normalized_cleaning_speeds = list(normalized_cleaning_speeds_dict.values())
 
 def OLA_plots(cases, var1, var2, axis_labels, legend_labels, title, figure_number):
     """Create a bar plot for data sets plotted on the same x-axis with different y-axes."""
-    fig, ax = plt.subplots(figsize = (16,6))
+    fig, ax = plt.subplots(figsize = (20,10))
     labels = cases
     x = np.arange(len(cases))
     ax2 = ax.twinx()
@@ -169,6 +186,7 @@ def OLA_plots(cases, var1, var2, axis_labels, legend_labels, title, figure_numbe
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_title(title,fontsize=18, weight='bold')
+    plt.savefig(title, dpi = 300)
 
     return plt.figure(figure_number)
 
@@ -210,44 +228,22 @@ sorted_cases = []
 for rank in sorted_ranks:
     sorted_cases.append(inv_scores_dict[rank])
 
+os.mkdir(Path.cwd() / 'plots')
+os.chdir(Path.cwd() / 'plots')
+p1 = OLA_plots(cases, cleaning_speeds, times, ["Clean Speed (%/s)", "Cleaning Time (s)"], ["Clean Speed", "Time"], "Cleaning Speeds and Cleaning Times", 1)
+p2 = OLA_plots(cases, energies, times, ["Energy Consumed (kJ)", "Cleaning Time (s)"], ["Energy", "Time"], "Energy Consumption and Cleaning Times", 2)
+p3 = OLA_plots(cases, energies, cleaning_speeds, ["Energy Consumed (kJ)", "Cleaning Speed (%/s)"], ["Energy", "Clean Speed"], "Energy Consumption and Cleaning Speeds", 3)
+p4 = OLA_plots(cases, normalized_inverse_energies, normalized_cleaning_speeds, ["Normalized Inverse of Energy Consumed", "Normalized Cleaning Speed"], ["Normalized Inverse Energy", "#Normalized Cleaning Speed"], "Normalized Inverse of Energy Consumption and Cleaning Speed", 4)#
+fig_array = [p1, p2, p3, p4]
+fig = plt.figure(figsize= (16,6))
+plt.bar(sorted_cases, sorted_ranks, color = 'red', width = 0.25)#
+plt.xlabel("Input Parameters")
+plt.ylabel("Score")
+plt.title("Scores for Different Operating Conditions")
+fig.savefig('Final Scores and Rankings', dpi=300)
 
 
-#p1 = OLA_plots(cases, cleaning_speeds, times, ["Clean Speed (%/s)", "Cleaning Time (s)"], ["Clean Speed", "Time"], "Cleaning Speeds and Cleaning imes", 1)
-#p2 = OLA_plots(cases, energies, times, ["Energy Consumed (kJ)", "Cleaning Time (s)"], ["Energy", "Time"], "Energy Consumption and Cleaning Times", 2)
-#p3 = OLA_plots(cases, energies, cleaning_speeds, ["Energy Consumed (kJ)", "Cleaning Speed (%/s)"], ["Energy", "Clean Speed"], "Energy Consumption and leaning Speeds", 3)
-#p4 = OLA_plots(cases, normalized_inverse_energies, normalized_cleaning_speeds, ["Normalized Inverse of Energy Consumed", "Normalized Cleaning Speed"], ["Normalized Inverse Energy", "#Normalized Cleaning Speed"], "Normalized Inverse of Energy Consumption and Cleaning Speed", 4)#
-#fig = plt.figure(figsize= (16,6))
-#plt.bar(sorted_cases, sorted_ranks, color = 'red', width = 0.25)#
-#plt.xlabel("Input Parameters")
-#plt.ylabel("Score")
-#plt.title("Scores for Different Operating Conditions")
-#plt.show()
 
-
-#def post_process(data_out_edge, ip):
-#    derivative_array = [0]
-#    time_array = list(data_out_edge['time_array'])
-#    cleaning_eff_array = list(data_out_edge['CleaningEffNorm1'])
-#    energy_array = list(data_out_edge['Energy'])
-#    for i in range(1, len(time_array)):
-#        derivative_array.append((cleaning_eff_array[i] - cleaning_eff_array[i-1]) / (time_array[i] - time_array[i-1]))
-#    data_out_edge['cleaning_speeds'] = derivative_array
-#    max_speed = max(derivative_array)
-#
-#    for i in range(time_array):
-#        time = time_array[i]
-#        speed = derivative_array[i]
-#        clean_eff = cleaning_eff_array[i]
-#        cutoff = ip['cutoff_value']
-#        if speed == speed:
-#            ref_time = time[i]
-#            ref_energy = energy_array[i]
-#        if clean_eff >= cutoff:
-#            prev_clean = cleaning_eff_array[i-1]
-#            prev_time = time_array[i-1]
-#            cutoff_time = (time - prev_time) / (clean_eff - prev_clean) * (cutoff - prev_clean) + prev_time
-#            energy_consumption = ref_energy/ref_time * cutoff_time
-#
 
 
 
