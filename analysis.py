@@ -15,15 +15,14 @@ try:
     shutil.rmtree(os.path.join(path, 'plots'), ignore_errors=True)
 except:
     print(Path.cwd() / 'plots' " doesn't exist")
-
+try:
+    path_folders.remove('seperated_cleaning_effectiveness_results.xls')
+except:
+        pass
 folder_list = []
 path_folders = os.listdir(path)
 for file in path_folders:
-    try:
-        path_folders.remove('seperated_cleaning_effectiveness_results.xls')
-    except:
-        pass
-    if (file[-3:] != 'mp4' and file[-2:] != 'py'):
+    if file.split(' ')[-1] == 'amps':
         folder_list.append(file)
 #All data from Excel file will be captured in one dictionary variable: cleaning_data{}
 cleaning_data = {}
@@ -36,7 +35,7 @@ for folder in folder_list:
     max_col = ws.max_column
     table_values = {}
     derivative_vals = []
-    parameter = ' '.join(folder.split(' ')[-4:])
+    parameter = ' '.join(folder.split(' ')[-6:-2])
     table_values[ws.cell(row = 2, column = 2).value] = [0, 0, 0]
     i = 3
     while(True):
@@ -52,7 +51,6 @@ for folder in folder_list:
 
 #Seperate out the different operating conditions being compared
 cases = list(cleaning_data.keys())
-
 
 #Write out the data to a different Excel File. This time each case will get its own sheet 
 wb = Workbook() 
