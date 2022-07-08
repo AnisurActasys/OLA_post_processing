@@ -4,8 +4,6 @@ from pyparsing import col
 import matplotlib.pyplot as plt
 import numpy as np
 from statistics import mean, stdev
-import xlwt
-from xlwt import Workbook
 import os
 import shutil
 
@@ -15,12 +13,12 @@ try:
     shutil.rmtree(os.path.join(path, 'plots'), ignore_errors=True)
 except:
     print(Path.cwd() / 'plots' " doesn't exist")
-try:
-    path_folders.remove('seperated_cleaning_effectiveness_results.xls')
-except:
-        pass
 folder_list = []
 path_folders = os.listdir(path)
+try:
+    path_folders.remove('seperated_cleaning_effectiveness_results.xlsx')
+except:
+        pass
 for file in path_folders:
     if file.split(' ')[-1] == 'amps':
         folder_list.append(file)
@@ -55,26 +53,27 @@ cases = list(cleaning_data.keys())
 #Write out the data to a different Excel File. This time each case will get its own sheet 
 wb = Workbook() 
 for case in cases:
-    curr_sheet = wb.add_sheet(case)
+    curr_sheet = wb.create_sheet(case,0)
     times = list(cleaning_data[case].keys())
-    curr_sheet.write(0, 0, case)
-    curr_sheet.write(1, 0, "Time (s)")
-    curr_sheet.write(1, 1, "Cleaning Effectiveness (%)")
-    curr_sheet.write(1, 2, "Energy Consumed (kJ)")
-    curr_sheet.write(1, 3, "Cleaning Rate (%/s)")
+    curr_sheet.cell(0+1, 0+1, case)
+    curr_sheet.cell(1+1, 0+1, "Time (s)")
+    curr_sheet.cell(1+1, 1+1, "Cleaning Effectiveness (%)")
+    curr_sheet.cell(1+1, 2+1, "Energy Consumed (kJ)")
+    curr_sheet.cell(1+1, 3+1, "Cleaning Rate (%/s)")
     i = 2
     for time in times:
         clean_eff = cleaning_data[case][time][0]
         energy_cons = cleaning_data[case][time][1]
         clean_derivative = cleaning_data[case][time][2]
         
-        curr_sheet.write(i, 0, round(time, 2))
-        curr_sheet.write(i, 1, round(clean_eff, 2))
-        curr_sheet.write(i, 2, round(energy_cons, 2))
-        curr_sheet.write(i, 3, round(clean_derivative, 2))
+        curr_sheet.cell(i+1, 0+1, round(time, 2))
+        curr_sheet.cell(i+1, 1+1, round(clean_eff, 2))
+        curr_sheet.cell(i+1, 2+1, round(energy_cons, 2))
+        curr_sheet.cell(i+1, 3+1, round(clean_derivative, 2))
         i += 1
 
-wb.save('seperated_cleaning_effectiveness_results.xls') #Saving as xlsx file was causing errors so xls is used for now
+wb.remove(wb['Sheet'])
+wb.save(path / 'seperated_cleaning_effectiveness_results.xlsx') #Saving as xlsx file was causing errors so xls is used for now
 
 #80% cleaning effectiveness will be the cutoff for the analysis
 #Create a new dictionary that only holds values from when actuator until the cutoff point
@@ -239,16 +238,3 @@ plt.xlabel("Input Parameters")
 plt.ylabel("Score")
 plt.title("Scores for Different Operating Conditions")
 fig.savefig('Final Scores and Rankings', dpi=300)
-
-
-
-
-
-
-
-
-
-
-
-
-
