@@ -12,7 +12,7 @@ path = Path.cwd()
 try:
     shutil.rmtree(os.path.join(path, 'plots'), ignore_errors=True)
 except:
-    print(Path.cwd() / 'plots' " doesn't exist")
+    pass
 folder_list = []
 path_folders = os.listdir(path)
 try:
